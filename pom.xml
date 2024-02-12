@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.frank</groupId>
-	<artifactId>redssion-demo</artifactId>
+	<artifactId>redisson-demo</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>redssion-demo</name>
+	<name>redisson-demo</name>
 	<description>Redisson Demo for Spring Boot</description>
 	<properties>
 		<java.version>17</java.version>

@@ -19,6 +19,8 @@ spring:
     password: postgres
 
 
+
+
   docker:
     compose:
       enabled: true
