@@ -4,13 +4,19 @@ import com.frank.redissondemo.dao.repository.DatapointRepository;
 import com.frank.redissondemo.model.dto.CalcDatapointDTO;
 import com.frank.redissondemo.model.dto.SaveDatapointDTO;
 import com.frank.redissondemo.model.po.Datapoint;
+import com.frank.redissondemo.service.CacheService;
 import com.frank.redissondemo.service.DatapointService;
 import com.google.common.base.Preconditions;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,6 +24,11 @@ import org.springframework.stereotype.Service;
 public class DatapointServiceImpl implements DatapointService {
 
   private final DatapointRepository repository;
+
+  private final CacheService cacheService;
+
+  @Value("${datapoint.cache.expire-in-milis:300_000L}")
+  private Long cacheExpireInMilis;
 
   @Override
   public Datapoint calculateDatapoint(CalcDatapointDTO calcDatapoint) {
@@ -46,6 +57,7 @@ public class DatapointServiceImpl implements DatapointService {
         calculateDatapoint(dp, saveReq.diff());
       }
       repository.updateById(dp);
+
     } else {
       dp = new Datapoint();
       dp.setGroupId(saveReq.groupId());
@@ -55,6 +67,11 @@ public class DatapointServiceImpl implements DatapointService {
       dp.setLongValue(saveReq.longValue());
       repository.save(dp);
     }
+
+    // 删除缓存
+    String cacheKey = cacheKeyForMap(dp.getGroupId());
+    String itemCacheKey = cacheKeyForMapItem(dp);
+    cacheService.deleteMapItem(cacheKey, itemCacheKey);
     return dp;
   }
 
@@ -85,7 +102,12 @@ public class DatapointServiceImpl implements DatapointService {
 
   @Override
   public boolean batchCreateDataPoint(List<Datapoint> dataPointList) {
-    return repository.saveBatch(dataPointList);
+
+    repository.saveBatch(dataPointList);
+
+    Long groupId = dataPointList.get(0).getGroupId();
+    cacheService.deleteMap(cacheKeyForMap(groupId));
+    return true;
   }
 
   @Override
@@ -95,13 +117,57 @@ public class DatapointServiceImpl implements DatapointService {
 
   @Override
   public List<Datapoint> getDatapointByGroupId(Long groupId) {
-    return repository.listByGroupId(groupId);
+
+    //  添加redis缓存
+    String cacheKey = cacheKeyForMap(groupId);
+    List<Datapoint> datapointList = cacheService.batchGetMapItems(Datapoint.class, cacheKey);
+    if (Objects.nonNull(datapointList)) {
+      return datapointList;
+    } else {
+      List<Datapoint> result = repository.listByGroupId(groupId);
+      Map<String, Datapoint> resultMap =
+          result.stream().collect(Collectors.toMap(this::cacheKeyForMapItem, Function.identity()));
+      cacheService.batchSetMap(cacheKey, resultMap, cacheExpireInMilis);
+      return result;
+    }
   }
 
   @Override
   public Optional<Datapoint> getDatapointByGroupIdAndIndicatorCode(
       Long groupId, String indicatorCode) {
-    // TODO 添加redis缓存
-    return repository.findByGroupIdAndIndicatorCode(groupId, indicatorCode);
+    //  添加redis缓存
+    String itemCacheKey = cacheKeyForMapItem(groupId, indicatorCode);
+    String cacheKey = cacheKeyForMap(groupId);
+    Datapoint datapoint = cacheService.getMapItem(Datapoint.class, cacheKey, itemCacheKey);
+
+    if (Objects.nonNull(datapoint)) {
+      return Optional.of(datapoint);
+    } else {
+      Optional<Datapoint> datapointOps =
+          repository.findByGroupIdAndIndicatorCode(groupId, indicatorCode);
+      if (datapointOps.isPresent()) {
+        cacheService.setMapItem(cacheKey, itemCacheKey, datapointOps.get(), cacheExpireInMilis);
+      }
+      return datapointOps;
+    }
+  }
+
+  private Pair<String, String> cacheKeyDatapoint(Datapoint datapoint) {
+    return Pair.of(cacheKeyForMap(datapoint.getGroupId()), cacheKeyForMapItem(datapoint));
+  }
+
+  private String cacheKeyForMap(Long groupId) {
+    return "datapoint:group:" + groupId;
+  }
+
+  private String cacheKeyForMapItem(Datapoint datapoint) {
+    return "datapoint:group:"
+        + datapoint.getGroupId()
+        + ":indicator:"
+        + datapoint.getIndicatorCode();
+  }
+
+  private String cacheKeyForMapItem(Long groupId, String indicatorCode) {
+    return "datapoint:group:" + groupId + ":indicator:" + indicatorCode;
   }
 }

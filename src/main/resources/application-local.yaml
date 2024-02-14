@@ -25,6 +25,9 @@ spring:
       timeout: 3000
       connect-timeout: 10000
 
-datapoint:
-  cache:
-    expire-in-milis: 300000
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start_only
+      profiles:
+        active: local

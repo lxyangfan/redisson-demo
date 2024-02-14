@@ -1,8 +1,9 @@
-spring:
-  docker:
-    compose:
-      enabled: true
-      lifecycle-management: start_and_stop
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+#spring:
+#  redis:
+#    redisson:
+#      config: |
+#        codec: !<org.redisson.codec.JsonJacksonCodec> {}
