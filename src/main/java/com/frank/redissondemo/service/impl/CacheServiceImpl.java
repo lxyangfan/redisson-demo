@@ -84,4 +84,10 @@ public class CacheServiceImpl implements CacheService {
     RMap<String, Object> map = redissonClient.getMap(key);
     map.remove(mapKey);
   }
+
+  @Override
+  public void batchDeleteMapItems(String key, Set<String> mapKeys) {
+    RMap<String, Object> map = redissonClient.getMap(key);
+    map.fastRemove(mapKeys.toArray(new String[0]));
+  }
 }

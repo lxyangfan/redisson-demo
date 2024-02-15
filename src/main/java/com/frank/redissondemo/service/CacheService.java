@@ -28,4 +28,6 @@ public interface CacheService {
   void deleteMap(String key);
 
   void deleteMapItem(String key, String mapKey);
+
+  void batchDeleteMapItems(String key, Set<String> mapKeys);
 }

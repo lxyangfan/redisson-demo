@@ -11,12 +11,17 @@ import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
+@Slf4j
 class DatapointServiceImplTest extends DatabaseTest {
 
   @Autowired private DatapointService datapointService;
@@ -103,6 +108,54 @@ class DatapointServiceImplTest extends DatabaseTest {
     assertThat(result.getTextValue()).isEqualTo("text4");
     assertThat(result.getNumericValue()).isEqualToIgnoringScale(new BigDecimal("4.0000001"));
     assertThat(result.getLongValue()).isEqualTo(4L);
+  }
+
+  @Test
+  void save_datapoint_currently() throws InterruptedException {
+    // arrange
+    List<Datapoint> datapointList = createDatapointList();
+    datapointService.batchCreateDataPoint(datapointList);
+    CountDownLatch countDownLatch = new CountDownLatch(2);
+    CountDownLatch resultLatch = new CountDownLatch(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    executor.submit(
+        () -> {
+          log.info("save_datapoint_currently: Thread 1 enter");
+          countDownLatch.countDown();
+          try {
+            countDownLatch.await();
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          log.info("save_datapoint_currently: Thread 1 begin to save");
+
+          SaveDatapointDTO saveDatapointDTO =
+              new SaveDatapointDTO(1L, "code3", null, new BigDecimal("4.0000001"), null, null);
+
+          Datapoint result = datapointService.saveDatapoint(saveDatapointDTO);
+          log.info("save_datapoint_currently: Thread 1 result: {}", result);
+          resultLatch.countDown();
+        });
+
+    executor.submit(
+        () -> {
+          log.info("save_datapoint_currently: Thread 2 enter");
+          countDownLatch.countDown();
+          try {
+            countDownLatch.await();
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          log.info("save_datapoint_currently: Thread 2 begin to save");
+
+          SaveDatapointDTO saveDatapointDTO =
+              new SaveDatapointDTO(1L, "code3", null, new BigDecimal("4.0000002"), null, null);
+
+          Datapoint result = datapointService.saveDatapoint(saveDatapointDTO);
+          log.info("save_datapoint_currently: Thread 2 result: {}", result);
+          resultLatch.countDown();
+        });
+    resultLatch.await();
   }
 
   @Test

@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +27,8 @@ public class DatapointServiceImpl implements DatapointService {
 
   private final CacheService cacheService;
 
-  @Value("${datapoint.cache.expire-in-milis:300_000L}")
-  private Long cacheExpireInMilis;
+  @Value("${datapoint.cache.expire-in-millis:300_000L}")
+  private Long cacheExpireInMillis;
 
   @Override
   public Datapoint calculateDatapoint(CalcDatapointDTO calcDatapoint) {
@@ -103,33 +103,49 @@ public class DatapointServiceImpl implements DatapointService {
   @Override
   public boolean batchCreateDataPoint(List<Datapoint> dataPointList) {
 
+    Long groupId = assertDataPointSameGroupId(dataPointList);
+
     repository.saveBatch(dataPointList);
 
-    Long groupId = dataPointList.get(0).getGroupId();
     cacheService.deleteMap(cacheKeyForMap(groupId));
     return true;
   }
 
   @Override
   public boolean batchUpdateDataPoint(List<Datapoint> dataPointList) {
-    return repository.updateBatchById(dataPointList);
+
+    // 验证数据点都是同一个groupId
+    Long groupId = assertDataPointSameGroupId(dataPointList);
+
+    repository.updateBatchById(dataPointList);
+
+    // 删除缓存
+    String cacheKey = cacheKeyForMap(groupId);
+    Set<String> itemCacheKeys =
+        dataPointList.stream().map(this::cacheKeyForMapItem).collect(Collectors.toSet());
+    cacheService.batchDeleteMapItems(cacheKey, itemCacheKeys);
+    return true;
+  }
+
+  private Long assertDataPointSameGroupId(List<Datapoint> dataPointList) {
+    Long groupId = dataPointList.get(0).getGroupId();
+    Preconditions.checkArgument(
+        dataPointList.stream().allMatch(dp -> dp.getGroupId().equals(groupId)), "数据点groupId不一致");
+    return groupId;
   }
 
   @Override
   public List<Datapoint> getDatapointByGroupId(Long groupId) {
 
-    //  添加redis缓存
-    String cacheKey = cacheKeyForMap(groupId);
-    List<Datapoint> datapointList = cacheService.batchGetMapItems(Datapoint.class, cacheKey);
-    if (Objects.nonNull(datapointList)) {
-      return datapointList;
-    } else {
-      List<Datapoint> result = repository.listByGroupId(groupId);
+    List<Datapoint> result = repository.listByGroupId(groupId);
+    if (!result.isEmpty()) {
+      //  添加redis缓存
+      String cacheKey = cacheKeyForMap(groupId);
       Map<String, Datapoint> resultMap =
           result.stream().collect(Collectors.toMap(this::cacheKeyForMapItem, Function.identity()));
-      cacheService.batchSetMap(cacheKey, resultMap, cacheExpireInMilis);
-      return result;
+      cacheService.batchSetMap(cacheKey, resultMap, cacheExpireInMillis);
     }
+    return result;
   }
 
   @Override
@@ -146,14 +162,10 @@ public class DatapointServiceImpl implements DatapointService {
       Optional<Datapoint> datapointOps =
           repository.findByGroupIdAndIndicatorCode(groupId, indicatorCode);
       if (datapointOps.isPresent()) {
-        cacheService.setMapItem(cacheKey, itemCacheKey, datapointOps.get(), cacheExpireInMilis);
+        cacheService.setMapItem(cacheKey, itemCacheKey, datapointOps.get(), cacheExpireInMillis);
       }
       return datapointOps;
     }
-  }
-
-  private Pair<String, String> cacheKeyDatapoint(Datapoint datapoint) {
-    return Pair.of(cacheKeyForMap(datapoint.getGroupId()), cacheKeyForMapItem(datapoint));
   }
 
   private String cacheKeyForMap(Long groupId) {
