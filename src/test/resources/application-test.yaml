@@ -2,8 +2,8 @@ mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-#spring:
-#  redis:
-#    redisson:
-#      config: |
-#        codec: !<org.redisson.codec.JsonJacksonCodec> {}
+
+logging:
+  level:
+    com.frank: debug
+

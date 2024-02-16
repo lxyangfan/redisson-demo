@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.frank.redssiondemo.dao.mapper.IndicatorMapper">
+<mapper namespace="com.frank.redissondemo.dao.mapper.IndicatorMapper">
 
     <resultMap id="BaseResultMap" type="com.frank.redissondemo.model.po.Indicator">
             <id property="id" column="id" jdbcType="INTEGER"/>

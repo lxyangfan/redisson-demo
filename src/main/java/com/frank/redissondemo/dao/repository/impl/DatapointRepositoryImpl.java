@@ -29,4 +29,9 @@ public class DatapointRepositoryImpl extends ServiceImpl<DatapointMapper, Datapo
   public List<Datapoint> listByGroupId(Long groupId) {
     return lambdaQuery().eq(Datapoint::getGroupId, groupId).list();
   }
+
+  @Override
+  public boolean insertOnDuplicateKeyUpdate(Datapoint datapoint) {
+    return getBaseMapper().insertOnDuplicateKeyUpdate(datapoint);
+  }
 }

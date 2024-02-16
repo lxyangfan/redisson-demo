@@ -16,11 +16,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DatapointServiceImpl implements DatapointService {
 
   private final DatapointRepository repository;
@@ -46,28 +48,27 @@ public class DatapointServiceImpl implements DatapointService {
   @Override
   public Datapoint saveDatapoint(SaveDatapointDTO saveReq) {
 
-    // 可能是新增或者更新数据点， 如果是更新，需要先查询数据点是否存在，然后进行计算更新
-    Optional<Datapoint> datapointOpt =
-        getDatapointByGroupIdAndIndicatorCode(saveReq.groupId(), saveReq.indicatorCode());
-
     Datapoint dp;
-    if (datapointOpt.isPresent()) {
-      dp = datapointOpt.get();
-      if (Objects.nonNull(saveReq.diff())) {
-        calculateDatapoint(dp, saveReq.diff());
-      }
-      repository.updateById(dp);
-
-    } else {
+    if (Objects.isNull(saveReq.diff())) {
+      // diff 不存在，则直接保存
       dp = new Datapoint();
       dp.setGroupId(saveReq.groupId());
       dp.setIndicatorCode(saveReq.indicatorCode());
       dp.setTextValue(saveReq.text());
       dp.setNumericValue(saveReq.numeric());
       dp.setLongValue(saveReq.longValue());
-      repository.save(dp);
+
+    } else {
+      // diff 存在，则进行计算更新
+      // 可能是新增或者更新数据点， 如果是更新，需要先查询数据点是否存在，然后进行计算更新
+      Optional<Datapoint> datapointOpt =
+          getDatapointByGroupIdAndIndicatorCode(saveReq.groupId(), saveReq.indicatorCode());
+
+      dp = datapointOpt.get();
+      calculateDatapoint(dp, saveReq.diff());
     }
 
+    repository.insertOnDuplicateKeyUpdate(dp);
     // 删除缓存
     String cacheKey = cacheKeyForMap(dp.getGroupId());
     String itemCacheKey = cacheKeyForMapItem(dp);
@@ -157,6 +158,7 @@ public class DatapointServiceImpl implements DatapointService {
     Datapoint datapoint = cacheService.getMapItem(Datapoint.class, cacheKey, itemCacheKey);
 
     if (Objects.nonNull(datapoint)) {
+      log.debug("cache hit: {} vals:{}", itemCacheKey, datapoint);
       return Optional.of(datapoint);
     } else {
       Optional<Datapoint> datapointOps =

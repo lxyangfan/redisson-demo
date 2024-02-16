@@ -14,4 +14,6 @@ public interface DatapointRepository extends IService<Datapoint> {
   Optional<Datapoint> findByGroupIdAndIndicatorCode(Long groupId, String indicatorCode);
 
   List<Datapoint> listByGroupId(Long groupId);
+
+  boolean insertOnDuplicateKeyUpdate(Datapoint datapoint);
 }
