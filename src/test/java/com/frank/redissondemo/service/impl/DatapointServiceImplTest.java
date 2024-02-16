@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Ignore;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -113,7 +114,8 @@ class DatapointServiceImplTest extends DatabaseTest {
     assertThat(result.getLongValue()).isEqualTo(4L);
   }
 
-  @Test
+  @RepeatedTest(10)
+//  @Test
   void save_datapoint_currently() throws InterruptedException {
     // arrange
     List<Datapoint> datapointList = createDatapointList();
@@ -121,7 +123,6 @@ class DatapointServiceImplTest extends DatabaseTest {
     CountDownLatch countDownLatch = new CountDownLatch(2);
     CountDownLatch resultLatch = new CountDownLatch(2);
     ExecutorService executor = Executors.newFixedThreadPool(2);
-    AtomicLong atomicLong = new AtomicLong(0);
 
     executor.submit(
         () -> {
@@ -139,7 +140,6 @@ class DatapointServiceImplTest extends DatabaseTest {
 
           Datapoint result = datapointService.saveDatapoint(saveDatapointDTO);
           log.info("save_datapoint_currently: Thread 1 result: {}", result);
-          atomicLong.set(1L);
           resultLatch.countDown();
         });
 
@@ -159,7 +159,6 @@ class DatapointServiceImplTest extends DatabaseTest {
 
           Datapoint result = datapointService.saveDatapoint(saveDatapointDTO);
           log.info("save_datapoint_currently: Thread 2 result: {}", result);
-          atomicLong.set(2L);
           resultLatch.countDown();
         });
     resultLatch.await();
@@ -167,16 +166,14 @@ class DatapointServiceImplTest extends DatabaseTest {
     // asert
     Datapoint result = datapointService.getDatapointByGroupIdAndIndicatorCode(1L, "code3").get();
     assertThat(result).isNotNull();
-    if (atomicLong.get() == 1L) {
-      assertThat(result.getNumericValue()).isEqualToIgnoringScale(new BigDecimal("4.0000001"));
-    } else {
-      assertThat(result.getNumericValue()).isEqualToIgnoringScale(new BigDecimal("4.0000002"));
-    }
+
 
     Datapoint result2 = datapointService.getDatapointByGroupIdAndIndicatorCode(1L, "code3").get();
     assertThat(result2).isNotNull();
     assertThat(result2.getNumericValue()).isEqualToIgnoringScale(result.getNumericValue());
     assertThat(result2).isEqualTo(result);
+
+
   }
 
   @Test

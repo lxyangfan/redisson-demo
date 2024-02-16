@@ -3,7 +3,8 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 
+
 logging:
   level:
-    com.frank: debug
-
+    root: "info"
+    com.frank.redissondemo: "debug"

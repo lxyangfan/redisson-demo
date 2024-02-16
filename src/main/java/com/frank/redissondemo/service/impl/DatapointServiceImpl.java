@@ -51,6 +51,7 @@ public class DatapointServiceImpl implements DatapointService {
     Datapoint dp;
     if (Objects.isNull(saveReq.diff())) {
       // diff 不存在，则直接保存
+      log.debug("diff 不存在，直接保存");
       dp = new Datapoint();
       dp.setGroupId(saveReq.groupId());
       dp.setIndicatorCode(saveReq.indicatorCode());
@@ -61,6 +62,7 @@ public class DatapointServiceImpl implements DatapointService {
     } else {
       // diff 存在，则进行计算更新
       // 可能是新增或者更新数据点， 如果是更新，需要先查询数据点是否存在，然后进行计算更新
+      log.debug("diff 存在，进行计算更新");
       Optional<Datapoint> datapointOpt =
           getDatapointByGroupIdAndIndicatorCode(saveReq.groupId(), saveReq.indicatorCode());
 
