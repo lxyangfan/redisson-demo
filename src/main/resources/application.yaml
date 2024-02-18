@@ -27,4 +27,12 @@ spring:
 
 datapoint:
   cache:
-    expire-in-milis: 300000
+    expire-in-millis: 300000
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*.xml
+
+logging:
+  level:
+    root: "warn"
+    com.frank.redissondemo: "info"

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.frank.redssiondemo.dao.mapper.DatapointMapper">
+<mapper namespace="com.frank.redissondemo.dao.mapper.DatapointMapper">
 
     <resultMap id="BaseResultMap" type="com.frank.redissondemo.model.po.Datapoint">
             <id property="id" column="id" jdbcType="INTEGER"/>
@@ -20,4 +20,33 @@
         long_value,numeric_value,text_value,
         create_time,update_time
     </sql>
+
+    <sql id="Column_List_Without_Id">
+        group_id,indicator_code,
+        long_value,numeric_value,text_value,
+        create_time,update_time
+    </sql>
+
+    <insert id="insertOnDuplicateKeyUpdate" keyColumn="id" useGeneratedKeys="true">
+        insert into datapoint(
+        <include refid="Column_List_Without_Id"></include>)
+        values
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            #{groupId,jdbcType=BIGINT},
+            #{indicatorCode,jdbcType=VARCHAR},
+            #{longValue,jdbcType=BIGINT},
+            #{numericValue,jdbcType=NUMERIC},
+            #{textValue,jdbcType=VARCHAR},
+            now(),
+            now()
+        </trim>
+        on conflict(group_id, indicator_code) do update
+        <trim suffixOverrides=",">
+            set
+            long_value = excluded.long_value,
+            numeric_value = excluded.numeric_value,
+            text_value = excluded.text_value,
+            update_time = now()
+        </trim>
+    </insert>
 </mapper>

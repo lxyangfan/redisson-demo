@@ -11,6 +11,7 @@ create table if not exists datapoint
 );
 
 create index if not exists idx_datapoint_group_id on datapoint (group_id);
+create unique index if not exists idx_datapoint_group_id_indicator_code on datapoint (group_id, indicator_code);
 
 comment on table datapoint is '数据点';
 comment on column datapoint.id is 'ID';

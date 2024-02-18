@@ -11,6 +11,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface DatapointMapper extends BaseMapper<Datapoint> {
 
+  boolean insertOnDuplicateKeyUpdate(Datapoint datapoint);
+
 }
 
 
